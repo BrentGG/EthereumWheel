@@ -16,6 +16,8 @@ verandering = |huidige prijs - vorige prijs| / (2 * gemiddeld verschil) * 100
 ```
 Bijvoorbeeld, als de huidige prijs hetzelfde is als de vorige prijs, zal verandering 0% zijn. Als het verschil tussen de huidige en vorige prijs gelijk is aan het gemiddeld verschil, zal de verandering 50% zijn. Als het verschil tussen de huidige en vorige prijs twee (of meer) keer groter is dan het gemiddeld verschil, dan zal de verandering 100% zijn. 
 
+> Note: bij de eerste 2 updates zijn er nog niet genoeg waardes in de history om de verandering te berekenen, de verandering is dan standaard 50%.
+
 ### Gebruik
 
 In een terminal op de RPi:
