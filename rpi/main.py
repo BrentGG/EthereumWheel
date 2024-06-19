@@ -10,7 +10,7 @@ def wheel(ticker_symbol, update_rate_secs, num_gears=6, num_hist=10, port=None, 
     if port is not None:
         try:
             ser = serial.Serial(port, baud)
-            print("serial port connected")
+            print(f"serial port {port} connected")
         except ValueError:
             print("serial parameter out of range, make sure baud rate is correct")
             exit(-1)
@@ -28,9 +28,16 @@ def wheel(ticker_symbol, update_rate_secs, num_gears=6, num_hist=10, port=None, 
         # Get last stock price
         ticker = yf.Ticker(ticker_symbol)
         last_price = ticker.fast_info["last_price"]
+        # Get average difference of the history
+        if len(history) >= 2:
+            avg_diff = sum([abs(history[i] - history[i + 1]) for i in range(len(history) - 1)]) / (len(history) - 1)
+        else:
+            avg_diff = None
+        # Remove oldest value and insert new value
         if len(history) >= num_hist:
             history.pop()
         history.insert(0, last_price)
+        # Check for gear change
         if len(history) >= 2:
             if history[0] > history[1]:
                 gear = gear + 1 if gear + 1 < num_gears else 1
@@ -42,9 +49,21 @@ def wheel(ticker_symbol, update_rate_secs, num_gears=6, num_hist=10, port=None, 
                 print("- ", end="")
         else:
             print("- ", end="")
-        print("price: {:0.2f} / gear: {}".format(last_price, gear))
+        # Calculate the amount of fluctuation. 0 diff = 0% fluct, avg_diff = 50% fluct, 2 * avg_diff = 100% fluct
+        if avg_diff is not None and avg_diff > 0:
+            diff = abs(history[0] - history[1])
+            fluct = int((diff / (2 * avg_diff)) * 100)
+            if fluct > 100:
+                fluct = 100
+            elif fluct < 0:
+                fluct = 0
+        else:
+            fluct = 50
+        print("price: {:0.2f} | gear: {} | fluctuation: {}%".format(last_price, gear, fluct))
+        # Send to Arduino
         if ser is not None:
-            ser.write(bytearray(str(gear), "ascii"))
+            msg = f"{str(gear)} {str(fluct)}\n"
+            ser.write(bytearray(msg, "ascii"))
         # Wait for next check
         time.sleep(update_rate_secs)
 
@@ -56,7 +75,7 @@ def main():
     parser.add_argument("--ticker", "-t", action="store", default="ETH-EUR", help="Which ticker symbol to use, i.e. which stock.")
     parser.add_argument("--rate", "-r", type=float, action="store", default=30, help="Time between checking for stock value updates, in seconds.")
     parser.add_argument("--hist", "-hi", type=int, action="store", default=10, help="Number of values to keep in the history.")
-    parser.add_argument("--port", "-p", type=str, action="store", help="COM port of the Arduino controlling the wheel.")
+    parser.add_argument("--port", "-p", type=str, action="store", default="/dev/ttyACM0", help="Port the Arduino is connected to.")
     parser.add_argument("--baud", "-b", type=int, action="store", default=9600, help="Baud rate of the Arduino controlling the wheel.")
 
     # Parse arguments
