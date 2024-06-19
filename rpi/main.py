@@ -87,7 +87,7 @@ def main():
         else:
             ser = None
             print("no serial device found, running without serial communication")
-    else:
+    else: 
         try:
             ser = serial.Serial(dev, args.baud)
             print(f"serial device {dev} connected")
