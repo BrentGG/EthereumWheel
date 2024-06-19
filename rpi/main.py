@@ -2,26 +2,10 @@ import yfinance as yf
 import serial
 import time
 import argparse
-import time
+import serial.tools.list_ports as ls
 
 
-def wheel(ticker_symbol, update_rate_secs, num_gears=6, num_hist=10, port=None, baud=9600):
-    # Connect serial port
-    if port is not None:
-        try:
-            ser = serial.Serial(port, baud)
-            print(f"serial port {port} connected")
-        except ValueError:
-            print("serial parameter out of range, make sure baud rate is correct")
-            exit(-1)
-        except serial.SerialException:
-            print("serial device could not be found or configured")
-            exit(-1)
-    else:
-        ser = None
-        print("no serial port provided, running without serial communication")
-    
-    # Main loop
+def wheel(ticker_symbol, update_rate_secs, num_gears=6, num_hist=10, ser=None):
     gear = int(num_gears / 2)
     history = []
     while True:
@@ -75,15 +59,48 @@ def main():
     parser.add_argument("--ticker", "-t", action="store", default="ETH-EUR", help="Which ticker symbol to use, i.e. which stock.")
     parser.add_argument("--rate", "-r", type=float, action="store", default=30, help="Time between checking for stock value updates, in seconds.")
     parser.add_argument("--hist", "-hi", type=int, action="store", default=10, help="Number of values to keep in the history.")
-    parser.add_argument("--port", "-p", type=str, action="store", default="/dev/ttyACM0", help="Port the Arduino is connected to.")
+    parser.add_argument("--dev", "-d", type=str, action="store", help="Device name of the Arduino. Tries to automatically find it if none provided.")
     parser.add_argument("--baud", "-b", type=int, action="store", default=9600, help="Baud rate of the Arduino controlling the wheel.")
 
     # Parse arguments
     args = parser.parse_args()
+    
+    # Connect serial port
+    dev = args.dev
+    if dev is None:
+        devs = [p.device for p in ls.comports()]
+        if len(devs) > 0:
+            print(f"searching for devices, found {devs}")
+            for device in devs:
+                print(f"attempting connection with {device}... ", end="")
+                try:
+                    ser = serial.Serial(device, args.baud)
+                    print("success")
+                    break
+                except ValueError:
+                    print("failed")
+                except serial.SerialException:
+                    print("failed")
+                ser = None
+            if ser is None:
+                print(f"couldn't find serial device to connect with, running without serial communication")
+        else:
+            ser = None
+            print("no serial device found, running without serial communication")
+    else:
+        try:
+            ser = serial.Serial(dev, args.baud)
+            print(f"serial device {dev} connected")
+        except ValueError:
+            print("serial parameter out of range, make sure baud rate is correct")
+            exit(-1)
+        except serial.SerialException:
+            print("serial device could not be found or configured")
+            exit(-1)
 
     # Run the wheel
     print("checking for new price every {} seconds".format(args.rate))
-    wheel(args.ticker, args.rate, num_gears=args.gears, num_hist=args.hist, port=args.port, baud=int(args.baud))
+    wheel(args.ticker, args.rate, num_gears=args.gears, num_hist=args.hist, ser=ser)
 
 
 if __name__ == '__main__':
