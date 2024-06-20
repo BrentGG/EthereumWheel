@@ -46,7 +46,7 @@ def wheel(ticker_symbol, update_rate_secs, num_gears=6, num_hist=10, ser=None):
         print("price: {:0.2f} | gear: {} | fluctuation: {}%".format(last_price, gear, fluct))
         # Send to Arduino
         if ser is not None:
-            msg = f"{str(gear)} {str(fluct)}\n"
+            msg = f"{str(gear)} {str(fluct)} 1\n"
             ser.write(bytearray(msg, "ascii"))
         # Wait for next check
         time.sleep(update_rate_secs)
@@ -71,6 +71,7 @@ def main():
         devs = [p.device for p in ls.comports()]
         if len(devs) > 0:
             print(f"searching for devices, found {devs}")
+            ser = None
             for device in devs:
                 print(f"attempting connection with {device}... ", end="")
                 try:
